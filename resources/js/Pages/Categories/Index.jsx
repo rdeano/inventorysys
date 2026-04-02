@@ -11,16 +11,20 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CategoryIcon from '@mui/icons-material/Category';
+import Pagination from '../../Components/Pagination';
+import SearchIcon from '@mui/icons-material/Search';
+import InputAdornment from '@mui/material/InputAdornment';
 
 const emptyForm = { name: '', description: '' };
 
-export default function Index({ categories }) {
+export default function Index({ categories, filters }) {
     const [open, setOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [selected, setSelected] = useState(null);
     const [form, setForm] = useState(emptyForm);
     const [errors, setErrors] = useState({});
     const [processing, setProcessing] = useState(false);
+    const [search, setSearch] = useState(filters?.search || '');
 
     function handleOpen(category = null) {
         if (category) {
@@ -72,6 +76,29 @@ export default function Index({ categories }) {
                     Add Category
                 </Button>
             </Box>
+
+            <TextField
+                placeholder="Search categories..."
+                value={search}
+                onChange={e => {
+                    setSearch(e.target.value);
+                    router.get('/categories', { search: e.target.value }, {
+                        preserveState: true,
+                        preserveScroll: true,
+                        replace: true,
+                    });
+                }}
+                size="small"
+                sx={{ mb: 2, width: 300 }}
+                InputProps={{
+                    startAdornment: (
+                        <InputAdornment position="start">
+                            <SearchIcon />
+                        </InputAdornment>
+                    ),
+                }}
+            />
+
 
             {/* Table */}
             <TableContainer component={Paper} elevation={2}>
@@ -125,6 +152,7 @@ export default function Index({ categories }) {
                     </TableBody>
                 </Table>
             </TableContainer>
+            <Pagination data={categories} />
 
             {/* Add/Edit Dialog */}
             <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>

@@ -8,11 +8,18 @@ use Inertia\Inertia;
 
 class CategoryController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $categories = Category::withCount('products')->latest()->paginate(10);
+        $categories = Category::withCount('products')
+            ->when($request->search, fn($q) => $q
+                ->where('name', 'like', "%{$request->search}%"))
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
+
         return Inertia::render('Categories/Index', [
             'categories' => $categories,
+            'filters' => $request->only('search'),
         ]);
     }
 

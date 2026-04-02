@@ -8,11 +8,19 @@ use Inertia\Inertia;
 
 class SupplierController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $suppliers = Supplier::latest()->paginate(10);
+        $suppliers = Supplier::latest()
+            ->when($request->search, fn($q) => $q
+                ->where('name', 'like', "%{$request->search}%")
+                ->orWhere('email', 'like', "%{$request->search}%")
+                ->orWhere('contact_person', 'like', "%{$request->search}%"))
+            ->paginate(10)
+            ->withQueryString();
+
         return Inertia::render('Suppliers/Index', [
             'suppliers' => $suppliers,
+            'filters' => $request->only('search'),
         ]);
     }
 

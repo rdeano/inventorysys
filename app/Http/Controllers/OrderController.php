@@ -12,19 +12,22 @@ use Inertia\Inertia;
 
 class OrderController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $orders = Order::with(['supplier', 'items.product'])
+            ->when($request->search, fn($q) => $q
+                ->where('order_number', 'like', "%{$request->search}%")
+                ->orWhereHas('supplier', fn($q) => $q->where('name', 'like', "%{$request->search}%")))
+            ->when($request->type, fn($q) => $q->where('type', $request->type))
             ->latest()
-            ->paginate(10);
-
-        $products = Product::all();
-        $suppliers = Supplier::all();
+            ->paginate(10)
+            ->withQueryString();
 
         return Inertia::render('Orders/Index', [
             'orders' => $orders,
-            'products' => $products,
-            'suppliers' => $suppliers,
+            'products' => Product::all(),
+            'suppliers' => Supplier::all(),
+            'filters' => $request->only(['search', 'type']),
         ]);
     }
 

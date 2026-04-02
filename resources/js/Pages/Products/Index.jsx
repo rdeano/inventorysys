@@ -12,6 +12,7 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
+import Pagination from '../../Components/Pagination';
 
 const UNITS = ['pcs', 'kg', 'g', 'L', 'mL', 'box', 'pack', 'dozen'];
 
@@ -19,7 +20,7 @@ const emptyForm = {
     name: '',
     sku: '',
     category_id: '',
-    supplier_id : '',
+    supplier_id: '',
     unit: 'pcs',
     price: '',
     stock: '',
@@ -27,11 +28,11 @@ const emptyForm = {
     description: '',
 };
 
-export default function Index({ products, categories, suppliers }) {
+export default function Index({ products, categories, suppliers, filters }) {
     const [open, setOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
-    const [search, setSearch] = useState('');
+    const [search, setSearch] = useState(filters?.search || '');
 
     const { data, setData, post, put, processing, errors, reset } = useForm(emptyForm);
 
@@ -41,7 +42,7 @@ export default function Index({ products, categories, suppliers }) {
             setData({
                 name: product.name,
                 sku: product.sku,
-                category: product.category || '',
+                category_id: product.category_id || '', // 👈 Fixed
                 supplier_id: product.supplier_id || '',
                 unit: product.unit,
                 price: product.price,
@@ -65,11 +66,11 @@ export default function Index({ products, categories, suppliers }) {
     function handleSubmit(e) {
         e.preventDefault();
         if (selectedProduct) {
-            router.put(`/products/${selectedProduct.id}`, data, {
+            put(`/products/${selectedProduct.id}`, {
                 onSuccess: () => handleClose(),
             });
         } else {
-            router.post('/products', data, {
+            post('/products', {
                 onSuccess: () => handleClose(),
             });
         }
@@ -80,11 +81,6 @@ export default function Index({ products, categories, suppliers }) {
             onSuccess: () => setDeleteOpen(false),
         });
     }
-
-    const filtered = products.data.filter(p =>
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.sku.toLowerCase().includes(search.toLowerCase())
-    );
 
     return (
         <AppLayout title="Products">
@@ -100,7 +96,14 @@ export default function Index({ products, categories, suppliers }) {
             <TextField
                 placeholder="Search by name or SKU..."
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={e => {
+                    setSearch(e.target.value);
+                    router.get('/products', { search: e.target.value }, {
+                        preserveState: true,
+                        preserveScroll: true,
+                        replace: true,
+                    });
+                }}
                 size="small"
                 sx={{ mb: 2, width: 300 }}
                 InputProps={{
@@ -130,12 +133,12 @@ export default function Index({ products, categories, suppliers }) {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {filtered.length === 0 ? (
+                        {products.data.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={9} align="center">No products found.</TableCell>
+                                <TableCell colSpan={10} align="center">No products found.</TableCell>
                             </TableRow>
                         ) : (
-                            filtered.map((product, index) => (
+                            products.data.map((product, index) => (
                                 <TableRow key={product.id} hover>
                                     <TableCell>{index + 1}</TableCell>
                                     <TableCell>{product.name}</TableCell>
@@ -170,6 +173,7 @@ export default function Index({ products, categories, suppliers }) {
                     </TableBody>
                 </Table>
             </TableContainer>
+            <Pagination data={products} />
 
             {/* Add/Edit Dialog */}
             <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
@@ -192,20 +196,14 @@ export default function Index({ products, categories, suppliers }) {
                     <Box sx={{ p: 4 }}>
 
                         {/* Basic Information */}
-                        <Box sx={{
-                            bgcolor: 'white',
-                            border: '1px solid #e0e0e0',
-                            borderRadius: 2,
-                            p: 3,
-                            mb: 3
-                        }}>
+                        <Box sx={{ bgcolor: 'white', border: '1px solid #e0e0e0', borderRadius: 2, p: 3, mb: 3 }}>
                             <Typography variant="subtitle2" color="primary" fontWeight="bold"
                                 sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
                                 📦 BASIC INFORMATION
                             </Typography>
 
-                            <Grid spacing={2}>
-                                <Grid item>
+                            <Grid container spacing={3}> {/* 👈 Fixed: added container */}
+                                <Grid size={{ xs: 12, sm: 6 }}>
                                     <TextField
                                         fullWidth
                                         label="Product Name"
@@ -216,7 +214,7 @@ export default function Index({ products, categories, suppliers }) {
                                         placeholder="e.g. Wireless Mouse"
                                     />
                                 </Grid>
-                                <Grid>
+                                <Grid size={{ xs: 12, sm: 6 }}>
                                     <TextField
                                         fullWidth
                                         label="SKU / Barcode"
@@ -227,7 +225,7 @@ export default function Index({ products, categories, suppliers }) {
                                         placeholder="e.g. WM-001"
                                     />
                                 </Grid>
-                                <Grid item>
+                                <Grid size={{ xs: 12, sm: 6 }}>
                                     <TextField
                                         fullWidth
                                         select
@@ -242,7 +240,7 @@ export default function Index({ products, categories, suppliers }) {
                                         ))}
                                     </TextField>
                                 </Grid>
-                                <Grid item >
+                                <Grid size={{ xs: 12, sm: 6 }}>
                                     <TextField
                                         fullWidth
                                         select
@@ -257,7 +255,7 @@ export default function Index({ products, categories, suppliers }) {
                                         ))}
                                     </TextField>
                                 </Grid>
-                                <Grid item xs={12} sm={6}>
+                                <Grid size={{ xs: 12, sm: 6 }}>
                                     <TextField
                                         fullWidth
                                         select
@@ -269,7 +267,7 @@ export default function Index({ products, categories, suppliers }) {
                                         {UNITS.map(u => <MenuItem key={u} value={u}>{u}</MenuItem>)}
                                     </TextField>
                                 </Grid>
-                                <Grid item xs={12}>
+                                <Grid size={{ xs: 12 }}>
                                     <TextField
                                         fullWidth
                                         label="Description"
@@ -285,19 +283,14 @@ export default function Index({ products, categories, suppliers }) {
                         </Box>
 
                         {/* Pricing & Stock */}
-                        <Box sx={{
-                            bgcolor: 'white',
-                            border: '1px solid #e0e0e0',
-                            borderRadius: 2,
-                            p: 3,
-                        }}>
+                        <Box sx={{ bgcolor: 'white', border: '1px solid #e0e0e0', borderRadius: 2, p: 3 }}>
                             <Typography variant="subtitle2" color="primary" fontWeight="bold"
                                 sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
                                 💰 PRICING & STOCK
                             </Typography>
 
-                            <Grid>
-                                <Grid item>
+                            <Grid container spacing={3}> {/* 👈 Fixed: added container */}
+                                <Grid size={{ xs: 12, sm: 4 }}>
                                     <TextField
                                         fullWidth
                                         label="Price"
@@ -311,7 +304,7 @@ export default function Index({ products, categories, suppliers }) {
                                         }}
                                     />
                                 </Grid>
-                                <Grid item >
+                                <Grid size={{ xs: 12, sm: 4 }}>
                                     <TextField
                                         fullWidth
                                         label="Stock Quantity"
@@ -325,7 +318,7 @@ export default function Index({ products, categories, suppliers }) {
                                         }}
                                     />
                                 </Grid>
-                                <Grid item >
+                                <Grid size={{ xs: 12, sm: 4 }}>
                                     <TextField
                                         fullWidth
                                         label="Low Stock Threshold"
@@ -340,26 +333,15 @@ export default function Index({ products, categories, suppliers }) {
                                 </Grid>
                             </Grid>
                         </Box>
-
                     </Box>
                 </DialogContent>
 
                 <Divider />
                 <DialogActions sx={{ px: 4, py: 2.5, gap: 1, bgcolor: '#fafafa' }}>
-                    <Button
-                        onClick={handleClose}
-                        variant="outlined"
-                        color="inherit"
-                        sx={{ minWidth: 120, borderRadius: 2 }}
-                    >
+                    <Button onClick={handleClose} variant="outlined" color="inherit" sx={{ minWidth: 120, borderRadius: 2 }}>
                         Cancel
                     </Button>
-                    <Button
-                        variant="contained"
-                        onClick={handleSubmit}
-                        disabled={processing}
-                        sx={{ minWidth: 120, borderRadius: 2 }}
-                    >
+                    <Button variant="contained" onClick={handleSubmit} disabled={processing} sx={{ minWidth: 120, borderRadius: 2 }}>
                         {processing ? 'Saving...' : selectedProduct ? 'Update Product' : 'Add Product'}
                     </Button>
                 </DialogActions>
@@ -375,9 +357,7 @@ export default function Index({ products, categories, suppliers }) {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
-                    <Button variant="contained" color="error" onClick={handleDelete}>
-                        Delete
-                    </Button>
+                    <Button variant="contained" color="error" onClick={handleDelete}>Delete</Button>
                 </DialogActions>
             </Dialog>
         </AppLayout>

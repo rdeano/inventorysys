@@ -15,6 +15,7 @@ import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import PersonIcon from '@mui/icons-material/Person';
 import PhoneIcon from '@mui/icons-material/Phone';
 import EmailIcon from '@mui/icons-material/Email';
+import Pagination from '../../Components/Pagination';
 
 const emptyForm = {
     name: '',
@@ -168,6 +169,8 @@ export default function Index({ suppliers }) {
                     </TableBody>
                 </Table>
             </TableContainer>
+            <Pagination data={suppliers} />
+            
 
             {/* Add/Edit Dialog */}
             <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>

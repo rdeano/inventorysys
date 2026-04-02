@@ -10,16 +10,21 @@ use Inertia\Inertia;
 
 class ProductController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $products = Product::with(['category', 'supplier'])->latest()->paginate(10);
-        $categories = Category::all();
-        $suppliers = Supplier::all(); // 👈 Add this
-        
+        $products = Product::with(['category', 'supplier'])
+            ->when($request->search, fn($q) => $q
+                ->where('name', 'like', "%{$request->search}%")
+                ->orWhere('sku', 'like', "%{$request->search}%"))
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
+
         return Inertia::render('Products/Index', [
             'products' => $products,
-            'categories' => $categories,
-            'suppliers' => $suppliers, // 👈 Add this
+            'categories' => Category::all(),
+            'suppliers' => Supplier::all(),
+            'filters' => $request->only('search'),
         ]);
     }
 

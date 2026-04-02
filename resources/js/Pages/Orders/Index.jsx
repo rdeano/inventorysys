@@ -15,6 +15,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
+import Pagination from '../../Components/Pagination';
 
 const emptyForm = {
     type: 'purchase',
@@ -32,7 +33,7 @@ const statusColor = {
     cancelled: 'error',
 };
 
-export default function Index({ orders, products, suppliers }) {
+export default function Index({ orders, products, suppliers, filters }) {
     const [open, setOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [editOpen, setEditOpen] = useState(false);
@@ -41,7 +42,15 @@ export default function Index({ orders, products, suppliers }) {
     const [errors, setErrors] = useState({});
     const [processing, setProcessing] = useState(false);
     const [search, setSearch] = useState('');
-    const [tab, setTab] = useState('all');
+    const [tab, setTab] = useState(filters?.type || 'all');
+
+    function handleTabChange(e, value) {
+        setTab(value);
+        router.get('/orders', { type: value === 'all' ? '' : value }, {
+            preserveState: true,
+            replace: true,
+        });
+    }
 
     function handleOpen() {
         setForm(emptyForm);
@@ -121,7 +130,7 @@ export default function Index({ orders, products, suppliers }) {
             </Box>
 
             {/* Tabs */}
-            <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 2 }}>
+            <Tabs value={tab} onChange={handleTabChange} sx={{ mb: 2 }}>
                 <Tab label="All Orders" value="all" />
                 <Tab label="Purchase Orders" value="purchase" />
                 <Tab label="Sales Orders" value="sales" />
@@ -205,6 +214,7 @@ export default function Index({ orders, products, suppliers }) {
                     </TableBody>
                 </Table>
             </TableContainer>
+            <Pagination data={orders} />
 
             {/* Create Order Dialog */}
             <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
