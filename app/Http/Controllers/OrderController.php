@@ -43,6 +43,18 @@ class OrderController extends Controller
             'items.*.unit_price' => 'required|numeric|min:0',
         ]);
 
+        if ($request->type === 'sales' && $request->status === 'completed') {
+            foreach ($request->items as $item) {
+                $product = Product::find($item['product_id']);
+                if ($product->stock < $item['quantity']) {
+                    return back()->withErrors([
+                        'items' => "Not enough stock for {$product->name}. Available: {$product->stock}"
+                    ]);
+                }
+            }
+        }
+
+
         DB::transaction(function () use ($request) {
             $total = collect($request->items)->sum(fn($i) => $i['quantity'] * $i['unit_price']);
 
@@ -64,14 +76,11 @@ class OrderController extends Controller
                     'unit_price' => $item['unit_price'],
                     'subtotal' => $item['quantity'] * $item['unit_price'],
                 ]);
+            }
 
-                // Update stock
-                $product = Product::find($item['product_id']);
-                if ($request->type === 'purchase') {
-                    $product->increment('stock', $item['quantity']);
-                } else {
-                    $product->decrement('stock', $item['quantity']);
-                }
+            // Only update stock if order is created as completed
+            if ($request->status === 'completed') {
+                $this->updateStock($order, 'completed');
             }
         });
 
@@ -85,13 +94,84 @@ class OrderController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        $order->update($request->only('status', 'notes'));
+        $oldStatus = $order->status;
+        $newStatus = $request->status;
+
+        if ($oldStatus === 'pending' && $newStatus === 'completed' && $order->type === 'sales') {
+            foreach ($order->items as $item) {
+                $product = Product::find($item->product_id);
+                if ($product->stock < $item->quantity) {
+                    return back()->withErrors([
+                        'items' => "Not enough stock for {$product->name}. Available: {$product->stock}"
+                    ]);
+                }
+            }
+        }
+
+
+        DB::transaction(function () use ($request, $order, $oldStatus, $newStatus) {
+            $order->update([
+                'status' => $newStatus,
+                'notes' => $request->notes,
+            ]);
+
+            // pending → completed: add/deduct stock
+            if ($oldStatus === 'pending' && $newStatus === 'completed') {
+                $this->updateStock($order, 'completed');
+            }
+
+            // completed → cancelled: reverse stock
+            if ($oldStatus === 'completed' && $newStatus === 'cancelled') {
+                $this->updateStock($order, 'cancelled');
+            }
+
+            // pending → cancelled: no stock change needed
+        });
+
         return back()->with('success', 'Order updated successfully.');
     }
 
     public function destroy(Order $order)
     {
-        $order->delete();
+        DB::transaction(function () use ($order) {
+            // If completed, reverse stock before deleting
+            if ($order->status === 'completed') {
+                $this->updateStock($order, 'cancelled');
+            }
+            $order->delete();
+        });
+
         return back()->with('success', 'Order deleted successfully.');
+    }
+
+    private function updateStock(Order $order, string $action)
+    {
+        $order->load('items');
+
+        foreach ($order->items as $item) {
+            $product = Product::find($item->product_id);
+            if (!$product) continue;
+
+            if ($action === 'completed') {
+                if ($order->type === 'purchase') {
+                    // Buying → increase stock
+                    $product->increment('stock', $item->quantity);
+                } else {
+                    // Selling → decrease stock
+                    // Make sure we don't go below 0
+                    $newStock = max(0, $product->stock - $item->quantity);
+                    $product->update(['stock' => $newStock]);
+                }
+            } elseif ($action === 'cancelled') {
+                if ($order->type === 'purchase') {
+                    // Reverse purchase → decrease stock
+                    $newStock = max(0, $product->stock - $item->quantity);
+                    $product->update(['stock' => $newStock]);
+                } else {
+                    // Reverse sales → increase stock back
+                    $product->increment('stock', $item->quantity);
+                }
+            }
+        }
     }
 }
